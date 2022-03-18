@@ -25,15 +25,19 @@ public:
 inline thread_pool::thread_pool(size_t num): 
      stop_(false) {
     for (auto i  = 0; i < num; ++i) {
-        threads_.emplace_back([=]() {
+        threads_.emplace_back([&] {
             for (;;)
             {
                 std::unique_lock<std::mutex> lock(mutex_);
-                while (task_queue_.empty()) 
+
+                while (task_queue_.empty())
                     condition_.wait(lock);
-                if (stop_ == true) 
+              
+                if (stop_ == true && task_queue_.empty()) 
                     return;
+
                 auto task = task_queue_.front();
+                task_queue_.pop();
                 task();
             }
         });
@@ -42,7 +46,7 @@ inline thread_pool::thread_pool(size_t num):
 
 inline void thread_pool::enqueue(std::function<void()> f) {
     {
-        std::lock_guard<std::mutex> lock(mutex_);
+        std::unique_lock<std::mutex> lock(mutex_);
         task_queue_.push(std::move(f));
     }
     condition_.notify_one();
@@ -57,4 +61,5 @@ inline void thread_pool::stop() {
 inline thread_pool::~thread_pool() {
    stop();
 }
+
 
