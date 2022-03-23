@@ -53,13 +53,20 @@ inline void thread_pool::enqueue(std::function<void()> f) {
 }
 
 inline void thread_pool::stop() {
-    stop_ = true;
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        stop_ = true;
+    }
+    condition_.notify_all();
+    
     for (auto& i : threads_) 
         i.join();
+        
 }
 
 inline thread_pool::~thread_pool() {
    stop();
 }
+
 
 
