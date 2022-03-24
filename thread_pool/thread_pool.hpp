@@ -33,7 +33,7 @@ inline thread_pool::thread_pool(size_t num):
                 while (task_queue_.empty())
                     condition_.wait(lock);
               
-                if (stop_ == true && task_queue_.empty()) 
+                if (stop_ == true) 
                     return;
 
                 auto task = task_queue_.front();
