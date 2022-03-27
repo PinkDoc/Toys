@@ -100,7 +100,7 @@ namespace mark_sweep_gc {
 
     inline void gc::mark()
     {
-         // mark from stack
+        // mark from stack
         mark_stack();
 
         // mark from root
@@ -154,8 +154,13 @@ namespace mark_sweep_gc {
             }
         }
     }
+}
 
+inline mark_sweep_gc::gc gc;
 
+inline void* gc_malloc(size_t size)
+{
+    return gc.gc_malloc(size);
 }
 
 #endif
