@@ -35,8 +35,9 @@ namespace mark_sweep_gc {
     class gc {
     private:
         gc_map map_;
-        static size_t level_;                  // The high-level of stop the world
+        size_t level_;                          // The high-level of stop the world
         size_t allocated_size_;                // The size of memory that already allocated
+        void* bos_;
 
         void mark_alloc(void* p);
         void mark_stack();
@@ -44,6 +45,9 @@ namespace mark_sweep_gc {
         void sweep();
         void run();                             // Run gc to mark and sweep 
     public:
+        gc(void* bos);      
+
+        // TODO 
         template <typename T>
         T* gc_new();
 
@@ -51,10 +55,22 @@ namespace mark_sweep_gc {
 
     };
 
+    gc::gc(void* bos):
+        level_(1024),
+        allocated_size_(0),
+        bos_(bos)
+    {}
+
+
+
     // TODO variable length template
     template <typename T>
     inline T* gc::gc_new()
     {
+        if (this->allocated_size_ > this->level_) {
+            run();
+        }
+
         auto ret = malloc(sizeof(T));
 
         if (!ret) {
@@ -98,6 +114,12 @@ namespace mark_sweep_gc {
         return ret;
     }
 
+    inline void gc::run() 
+    {
+        mark();
+        sweep();
+    }
+
     inline void gc::mark()
     {
         // mark from stack
@@ -107,12 +129,6 @@ namespace mark_sweep_gc {
         for (auto iter = map_.begin(); iter != map_.end(); ++iter) {
             mark_alloc(iter->second->mem_);
         }
-    }
-
-    inline void gc::run() 
-    {
-        mark();
-        sweep();
     }
 
     inline void gc::sweep()
@@ -133,7 +149,12 @@ namespace mark_sweep_gc {
 
     inline void gc::mark_stack()
     {
-        // TODO
+       void* tos = __builtin_frame_address(0);
+       void* bos = this->bos_;
+
+       for (char* p = (char*) tos; p <= (char*)bos - sizeof(char*) ; ++p) {
+           mark_alloc(*(void**)p);
+       }
     }
 
     inline void gc::mark_alloc(void* p)
