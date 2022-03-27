@@ -46,6 +46,7 @@ namespace mark_sweep_gc {
         void run();                             // Run gc to mark and sweep 
     public:
         gc(void* bos);      
+        ~gc();
 
         // TODO 
         template <typename T>
@@ -61,6 +62,17 @@ namespace mark_sweep_gc {
         bos_(bos)
     {}
 
+    gc::~gc()
+    {
+        for (auto i : map_)
+        {
+            auto alloc = i.second;
+            if (alloc->destructor_)
+                alloc->destructor_();
+            free(alloc->mem_);
+            delete alloc;
+        }
+    }
 
 
     // TODO variable length template
