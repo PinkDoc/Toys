@@ -68,9 +68,6 @@ namespace mark_sweep_gc {
         destructor_(std::move(d))
     {}
 
-    
-
-
     gc::gc(void* bos):
         level_(1024),
         allocated_size_(0),
@@ -165,7 +162,9 @@ namespace mark_sweep_gc {
             if (!(alloc->target_ & GC_MARK)) {
                 if (alloc->destructor_)
                     alloc->destructor_();
+                // Delete memory and allocation
                 free(alloc->mem_);
+                delete alloc;       
                 map_.erase(iter++);
             } else {
                 alloc->target_ = GC_UNMARK;
