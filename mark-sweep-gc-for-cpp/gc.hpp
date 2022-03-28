@@ -14,6 +14,7 @@ namespace mark_sweep_gc {
     enum mark {
         GC_UNMARK = 0x0,
         GC_MARK = 0x1,
+        GC_ROOT = 0x2
     };
 
     // Save the meta of memory
@@ -39,7 +40,7 @@ namespace mark_sweep_gc {
         std::size_t allocated_size_;                // The size of memory that already allocated
         void* bos_;
 
-        void mark_root(void* p);
+        void mark_root();
         void mark_alloc(void* p);
         void mark_stack();
         void mark();
@@ -152,9 +153,7 @@ namespace mark_sweep_gc {
         mark_stack();
 
         // mark from root
-        for (auto iter = map_.begin(); iter != map_.end(); ++iter) {
-            mark_root(iter->second->mem_);
-        }
+        mark_root();
     }
 
     inline void gc::sweep()
@@ -186,11 +185,9 @@ namespace mark_sweep_gc {
        }
     }
 
-    inline void gc::mark_root(void* p)
+    inline void gc::mark_root()
     {
-        auto iter = map_.find(p);
-        if (iter != map_.end() && !(iter->second->target_ & GC_MARK))
-        {
+        for (auto iter = map_.begin(); iter != map_.end() ; ++iter) {
             auto meta = iter->second;
             for (auto i = 0; i < meta->size_ ; ++i) 
             {
@@ -210,7 +207,7 @@ namespace mark_sweep_gc {
         auto iter = map_.find(p);
         if (iter != map_.end() && !(iter->second->target_ & GC_MARK)) {
             auto meta = iter->second;
-            iter->second->target_ |= GC_MARK;
+            meta->target_ |= GC_MARK;
     
             for (auto i = 0; i < meta->size_ ; ++i) 
             {
