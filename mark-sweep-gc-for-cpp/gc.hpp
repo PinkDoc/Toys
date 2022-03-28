@@ -39,6 +39,7 @@ namespace mark_sweep_gc {
         std::size_t allocated_size_;                // The size of memory that already allocated
         void* bos_;
 
+        void mark_root(void* p);
         void mark_alloc(void* p);
         void mark_stack();
         void mark();
@@ -69,7 +70,7 @@ namespace mark_sweep_gc {
     {}
 
     gc::gc(void* bos):
-        level_(1024),
+        level_(65536),
         allocated_size_(0),
         bos_(bos)
     {}
@@ -118,10 +119,11 @@ namespace mark_sweep_gc {
 
     inline void* gc::gc_malloc(size_t size)
     {
+        
         if (this->allocated_size_ > level_) {
             this->run();
         }
-
+        
         void* ret = malloc(size);
 
         if (!ret) {
@@ -151,7 +153,7 @@ namespace mark_sweep_gc {
 
         // mark from root
         for (auto iter = map_.begin(); iter != map_.end(); ++iter) {
-            mark_alloc(iter->second->mem_);
+            mark_root(iter->second->mem_);
         }
     }
 
@@ -160,6 +162,7 @@ namespace mark_sweep_gc {
         for (auto iter = map_.begin(); iter != map_.end();) {
             auto alloc = iter->second;
             if (!(alloc->target_ & GC_MARK)) {
+                allocated_size_ -= alloc->size_;
                 if (alloc->destructor_)
                     alloc->destructor_();
                 // Delete memory and allocation
@@ -183,15 +186,15 @@ namespace mark_sweep_gc {
        }
     }
 
-    inline void gc::mark_alloc(void* p)
+    inline void gc::mark_root(void* p)
     {
         auto iter = map_.find(p);
-        if (iter != map_.end() && !(iter->second->target_ & GC_MARK)) {
+        if (iter != map_.end() && !(iter->second->target_ & GC_MARK))
+        {
             auto meta = iter->second;
-            iter->second->target_ |= GC_MARK;
-    
             for (auto i = 0; i < meta->size_ ; ++i) 
             {
+                auto size = (char*)meta->mem_ + meta->size_ - sizeof(char*) - (char*)meta->mem_;
                 for (char* p = (char*) meta->mem_ ;
                      p <= (char*)meta->mem_ + meta->size_ - sizeof(char*);
                      ++p)
@@ -201,13 +204,26 @@ namespace mark_sweep_gc {
             }
         }
     }
-}
 
-inline mark_sweep_gc::gc gc;
-
-inline void* gc_malloc(size_t size)
-{
-    return gc.gc_malloc(size);
+    inline void gc::mark_alloc(void* p)
+    {
+        auto iter = map_.find(p);
+        if (iter != map_.end() && !(iter->second->target_ & GC_MARK)) {
+            auto meta = iter->second;
+            iter->second->target_ |= GC_MARK;
+    
+            for (auto i = 0; i < meta->size_ ; ++i) 
+            {
+                auto size = (char*)meta->mem_ + meta->size_ - sizeof(char*) - (char*)meta->mem_;
+                for (char* p = (char*) meta->mem_ ;
+                     p <= (char*)meta->mem_ + meta->size_ - sizeof(char*);
+                     ++p)
+                {
+                    mark_alloc(*(void**)p);
+                }
+            }
+        }
+    }
 }
 
 #endif
