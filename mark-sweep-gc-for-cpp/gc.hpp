@@ -19,13 +19,13 @@ namespace mark_sweep_gc {
     // Save the meta of memory
     class allocation {
     public:
-        size_t  size_;
+        std::size_t  size_;
         void*   mem_;
         uint8_t target_;
         std::function<void()> destructor_;
 
-        allocation(void* m, size_t s);           // destructor is nullptr
-        allocation(void* m, size_t s, std::function<void()> des);
+        allocation(void* m, std::size_t s);           // destructor is nullptr
+        allocation(void* m, std::size_t s, std::function<void()> des);
     };
 
     // Save the meta of allocation
@@ -35,8 +35,8 @@ namespace mark_sweep_gc {
     class gc {
     private:
         gc_map map_;
-        size_t level_;                          // The high-level of stop the world
-        size_t allocated_size_;                // The size of memory that already allocated
+        std::size_t level_;                          // The high-level of stop the world
+        std::size_t allocated_size_;                // The size of memory that already allocated
         void* bos_;
 
         void mark_alloc(void* p);
@@ -52,9 +52,24 @@ namespace mark_sweep_gc {
         template <typename T>
         T* gc_new();
 
-        void* gc_malloc(size_t size);
+        void* gc_malloc(std::size_t size);
 
     };
+
+    allocation::allocation(void* m, std::size_t s):
+        mem_(m),
+        size_(s),
+        destructor_(nullptr)
+    {}
+
+    allocation::allocation(void* m, std::size_t s, std::function<void()> d):
+        mem_(m),
+        size_(s),
+        destructor_(std::move(d))
+    {}
+
+    
+
 
     gc::gc(void* bos):
         level_(1024),
