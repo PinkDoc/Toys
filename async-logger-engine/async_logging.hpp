@@ -3,8 +3,13 @@
 //
 #pragma once
 
+#include "log_file.hpp"
+
+#include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <mutex>
@@ -13,7 +18,7 @@
 #include <condition_variable>
 
 namespace async_logging {
-    
+
 	class buffer {
 	private:
 		std::vector<char> buffer_;
@@ -44,22 +49,23 @@ namespace async_logging {
     	std::unique_ptr<buffer> current_buf_;			 
     	std::unique_ptr<buffer> next_buf_;		
 
+		std::thread log_thread_;
+
 		bool stop_;	 
 
-		std::thread log_thread_;
+		log_file file_;
+
     public:
 		logging(const logging&) = delete;
 		logging& operator= (const logging&) = delete;
 
-		logging();
+		logging(const std::string& name);
 		~logging();
 
         void append(const char* log, std::size_t len);
 		void thread_loop();
 		void run();
     };
-
-
 
     inline buffer::buffer():
     	buffer_(buffer_size_),
@@ -92,10 +98,11 @@ namespace async_logging {
 		end_index_ = 0;
 	}
 	
-	inline logging::logging():
+	inline logging::logging(const std::string& filename):
 		current_buf_(new buffer()),
 		next_buf_(new buffer()),
-		stop_(false)
+		stop_(false),
+		file_(filename)
 	{}
 
 	inline logging::~logging()
@@ -104,9 +111,13 @@ namespace async_logging {
 			std::unique_lock<std::mutex> lock(mutex_);
 			stop_ = true;
 		}
-
 		condition_.notify_all();
 		log_thread_.join();
+	}	
+
+	inline void logging::run()
+	{
+		log_thread_ = std::thread(std::bind(&logging::thread_loop, this));
 	}
 
     inline void logging::append(const char* log, std::size_t len)
@@ -117,9 +128,14 @@ namespace async_logging {
     	} else {
             buffers_.push_back(std::move(current_buf_));
 			
-			if (next_buf_ != nullptr)
+			if (!next_buf_)
 			{
+				next_buf_->reset();
 				current_buf_ = std::move(next_buf_);
+			}
+			else 
+			{
+				current_buf_.reset(new buffer());
 			}
 
 			current_buf_->append(log, len);
@@ -147,12 +163,12 @@ namespace async_logging {
 				{
 					next_buf_ = std::move(buffer2);
 				}
-				
 			}	// End 
 
 			for (const auto& i : bufferToWrite)
 			{
 				// Write to file
+				file_.write(i->peek(), i->size());
 			}
 
 			if (!buffer1) {
@@ -169,10 +185,10 @@ namespace async_logging {
 
 			bufferToWrite.clear();
 			// flush
-
+			file_.flush();
 		}
-
 		//flush
+		file_.flush();
 	}
 
 }  
