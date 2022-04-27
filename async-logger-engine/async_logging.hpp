@@ -357,13 +357,14 @@ namespace core {
         {
             l.append("\n", 1);
             loggingPtr->append(l.peek(), l.size());
+            return true;
         }
     };
 }   // namespace core
 
 #define Dalek_LoggerInit(filename) do {\
-            loggingPtr.reset(new core::imple::logging(filename));\
-                loggingPtr->run();\
+            core::loggingPtr.reset(new core::imple::logging(filename));\
+                core::loggingPtr->run();\
                     }while (0)
 
 #define DLOG(level) \
