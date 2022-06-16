@@ -21,7 +21,7 @@ private:
     cache_map  searcher_;
     cache_list list_;
 
-    void insert(K &&key, V &&val)
+    void insert(K key, V val)
     {
         // FIXME find_if
         auto iter = std::find(list_.begin(), list_.end(), key);
@@ -34,8 +34,8 @@ private:
             list_.erase(iter);
             list_.push_front(std::move(nk));
         } else {
-            list_.push_front(std::forward<K>(key));
-            searcher_.emplace(std::forward<K>(key), std::forward<K>(val));
+            list_.push_front(std::move(key));
+            searcher_.emplace(std::move(key), std::move(val));
         }
     }
 
@@ -46,7 +46,7 @@ private:
         list_.pop_back();
     }
 
-    void update(K &&key)
+    void update(K& key)
     {
         assert(!list_.empty());
 
@@ -76,40 +76,40 @@ public:
         capacity_ = c;
     }
 
-    V    get(K &&key);
-    V &  get_ref(K &&key);
-    void put(K &&key, V &&v);
+    V    get(K key);
+    V &  get_ref(K key);
+    void put(K key, V v);
 };
 
 template <typename K, typename V>
-inline V lru_cache<K, V>::get(K &&key)
+inline V lru_cache<K, V>::get(K key)
 {
     if (searcher_.find(key) != searcher_.end()) {
-        update(std::forward<K>(key));
-        return searcher_.at(std::forward<K>(key));
+        update(key);
+        return searcher_.at(key);
     }
     return V();
 }
 
 template <typename K, typename V>
-inline V &lru_cache<K, V>::get_ref(K &&key)
+inline V &lru_cache<K, V>::get_ref(K key)
 {
     if (searcher_.find(key) != searcher_.end()) {
-        update(std::forward<K>(key));
-        return searcher_.at(std::forward<K>(key));
+        update(key);
+        return searcher_.at(key);
     } else {
         throw std::exception();
     }
 }
 
 template <typename K, typename V>
-inline void lru_cache<K, V>::put(K &&key, V &&val)
+inline void lru_cache<K, V>::put(K key, V val)
 {
     auto list_size = list_.size();
     if (searcher_.find(key) == searcher_.end() && list_size == capacity_) {
         adjust();
     }
 
-    insert(std::forward<K>(key), std::forward<V>(val));
+    insert(std::move(key), std::move(val));
 }
 } // namespace lru
